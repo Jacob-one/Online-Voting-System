@@ -1,0 +1,31 @@
+@startuml
+actor Voter
+participant "BallotRoutes" as Route
+participant "AuthMiddleware" as MW
+participant "BallotController" as Controller
+participant "BallotService" as Service
+database "Election Model" as ElectionDB
+database "Candidate Model" as CandidateDB
+database "Ballot Model" as BallotDB
+
+Voter -> Route : GET /ballot/current
+Route -> MW : use(req,res,next)
+MW -> VoterDB : verifyToken()
+VoterDB --> MW : voterVerified
+MW --> Route : next()
+
+Route -> Controller : getBallot(req,res)
+
+== Build Ballot ==
+Controller -> Service : getCurrentBallot()
+Service -> ElectionDB : findOpenElection()
+ElectionDB --> Service : election
+
+Service -> CandidateDB : findCandidates(electionId)
+CandidateDB --> Service : candidates
+
+Service --> Controller : ballotData
+
+Controller --> Route : buildBallotResponse(ballot)
+Route --> Voter : ballotJSON
+@enduml
