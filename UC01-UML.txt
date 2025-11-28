@@ -1,0 +1,26 @@
+@startuml
+actor Voter
+participant "AuthRoutes" as Route
+participant "AuthMiddleware" as MW
+participant "AuthController" as Controller
+participant "AuthService" as Service
+database "Voter Model" as VoterDB
+
+== Login Request ==
+Voter -> Route : POST /auth/login
+Route -> Controller : login(req,res)
+
+== Validate Credentials ==
+Controller -> Service : validate(idNumber, password)
+Service -> VoterDB : findOne(idNumber)
+VoterDB --> Service : voterRecord
+
+Service --> Controller : validationResult
+
+== Generate Token ==
+Controller -> Service : generateToken(voter)
+Service --> Controller : jwtToken
+
+Controller --> Route : buildVoterResponse()
+Route --> Voter : loginSuccess(jwtToken)
+@enduml
