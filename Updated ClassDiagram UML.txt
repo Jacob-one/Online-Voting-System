@@ -1,0 +1,223 @@
+@startuml
+skinparam style strictuml
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam classBackgroundColor<<Controller>> #FFF5E6
+skinparam classBackgroundColor<<Service>> #F1F1FF
+skinparam classBackgroundColor<<Entity>> #F4FFF1
+skinparam classBackgroundColor<<Middleware>> #FFECCF
+skinparam classBackgroundColor<<Route>> #EAF7FF
+skinparam classBorderColor #666
+
+top to bottom direction
+
+'==========================================
+' ROUTES LAYER
+'==========================================
+package "Routes Layer" {
+  class AuthRoutes <<Route>> {
+    +POST /api/auth/login
+  }
+
+  class BallotRoutes <<Route>> {
+    +GET /api/ballot/current
+  }
+
+  class VoteRoutes <<Route>> {
+    +POST /api/vote
+  }
+
+  class ResultsRoutes <<Route>> {
+    +GET /api/results/current
+  }
+}
+
+'==========================================
+' MIDDLEWARE
+'==========================================
+package "Middleware" {
+  class AuthMiddleware <<Middleware>> {
+    +use(req,res,next)
+  }
+}
+
+'==========================================
+' CONTROLLERS
+'==========================================
+package "Controllers" {
+
+  class AuthController <<Controller>> {
+    +validateLoginPayload(body)
+    +buildVoterResponse(voter)
+    +login(req,res)
+  }
+
+  class BallotController <<Controller>> {
+    +buildBallotResponse(ballot,voter)
+    +handleNoOpenElection(res)
+    +getBallot(req,res)
+  }
+
+  class VoteController <<Controller>> {
+    +validateVotePayload(body)
+    +getSourceIp(req)
+    +buildSuccessResponse(vote)
+    +submitVote(req,res)
+  }
+
+  class ResultsController <<Controller>> {
+    +buildResultsResponse(data)
+    +handleNoOpenElection(res)
+    +viewResults(req,res)
+  }
+}
+
+'==========================================
+' SERVICES
+'==========================================
+package "Services" {
+
+  class AuthService <<Service>> {
+    +validate(idNumber,password)
+    +generateToken(voter)
+  }
+
+  class BallotService <<Service>> {
+    +getCurrentBallot()
+  }
+
+  class VoteService <<Service>> {
+    +recordVote(voterId,electionId,candidateIds,sourceIp)
+  }
+
+  class ResultsService <<Service>> {
+    +getCurrentResults()
+  }
+}
+
+'==========================================
+' MODELS (ENTITIES)
+'==========================================
+package "Models (Entities)" {
+
+  class Voter <<Entity>> {
+    +_id:ObjectId
+    +idNumber:String
+    +passwordHash:String
+    +name:String
+    +email:String
+    +hasVoted:Boolean
+    +status:String
+    +lastLoginAt:Date
+    +failedAttempts:int
+  }
+
+  class Election <<Entity>> {
+    +_id:ObjectId
+    +name:String
+    +description:String
+    +state:String
+    +startTime:Date
+    +endTime:Date
+    +tallyRule:String
+  }
+
+  class Candidate <<Entity>> {
+    +_id:ObjectId
+    +electionId:ObjectId
+    +name:String
+    +description:String
+    +party:String
+    +position:int
+  }
+
+  class Vote <<Entity>> {
+    +_id:ObjectId
+    +voterId:ObjectId
+    +electionId:ObjectId
+    +candidateIds:ObjectId[]
+    +createdAt:Date
+    +isValid:Boolean
+    +sourceIp:String
+    +auditId:String
+  }
+
+  class Ballot <<Entity>> {
+    +_id:ObjectId
+    +electionId:ObjectId
+    +style:String
+    +issuedAt:Date
+    +submittedAt:Date
+    +status:String
+  }
+
+  class ResultSnapshot <<Entity>> {
+    +_id:ObjectId
+    +electionId:ObjectId
+    +createdAt:Date
+    +totalsJson:String
+    +hash:String
+  }
+
+  class AuditEntry <<Entity>> {
+    +_id:ObjectId
+    +at:Date
+    +actor:String
+    +action:String
+    +type:String
+    +details:String
+    +ipAddress:String
+  }
+
+  class ElectionAdministrator <<Entity>> {
+    +_id:ObjectId
+    +name:String
+    +email:String
+    +lastLoginAt:Date
+  }
+}
+
+'==========================================
+' RELATIONSHIPS
+'==========================================
+
+'--- Routes to Controllers
+AuthRoutes --> AuthController : << uses >>
+BallotRoutes --> BallotController : << uses >>
+VoteRoutes --> VoteController : << uses >>
+ResultsRoutes --> ResultsController : << uses >>
+
+'--- Routes requiring authentication middleware
+BallotRoutes --> AuthMiddleware
+VoteRoutes --> AuthMiddleware
+ResultsRoutes --> AuthMiddleware
+
+'--- Controllers to Services
+AuthController --> AuthService
+BallotController --> BallotService
+VoteController --> VoteService
+ResultsController --> ResultsService
+
+'--- Middleware uses Model
+AuthMiddleware --> Voter
+
+'--- Services → Models
+AuthService --> Voter
+BallotService --> Election
+BallotService --> Candidate
+VoteService --> Voter
+VoteService --> Vote
+VoteService --> Election
+ResultsService --> Vote
+ResultsService --> Candidate
+ResultsService --> Election
+
+'--- Entity relationships
+Election "1" --> "0..*" Candidate : has >
+Voter "1" --> "0..1" Vote : casts >
+Election "1" --> "0..*" Vote : contains >
+ElectionAdministrator "1" --> "0..*" AuditEntry : performs >
+Vote "1" --> "1..*" Candidate : selections >
+Vote "1" --> "0..1" AuditEntry : logged >
+
+@enduml
