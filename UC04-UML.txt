@@ -1,0 +1,48 @@
+@startuml
+actor "Election Administrator" as Admin
+participant "AdminRoutes" as Route
+participant "AuthMiddleware" as MW
+participant "AdminController" as Controller
+participant "ResultsService" as Results
+participant "AuditService" as Audit
+database "Election Model" as ElectionDB
+
+== Load Election Config ==
+Admin -> Route : GET /admin/election
+Route -> MW : verifyToken()
+MW --> Route : next()
+Route -> Controller : getCurrentConfig()
+Controller -> ElectionDB : findCurrent()
+ElectionDB --> Controller : electionConfig
+Controller --> Route : return config
+
+== Configure Election ==
+Admin -> Route : POST /admin/election/configure
+Route -> MW : verifyToken()
+MW --> Route : next()
+Route -> Controller : configureElection(updatedElection)
+
+Controller -> ElectionDB : validate(updatedElection)
+ElectionDB --> Controller : validationResult
+
+alt Validation OK
+  Controller -> ElectionDB : save(updatedElection)
+  Controller -> Audit : record(adminId, "CONFIGURE_ELECTION")
+else Validation Failed
+  Controller --> Route : showValidationErrors()
+end
+
+== Open Election ==
+Admin -> Route : POST /admin/election/open
+Route -> Controller : openElection(electionId)
+Controller -> ElectionDB : setState(Open)
+Controller -> Audit : record(adminId,"OPEN_ELECTION")
+Controller --> Route : confirmOpen()
+
+== Close Election ==
+Admin -> Route : POST /admin/election/close
+Route -> Controller : closeElection(electionId)
+Controller -> ElectionDB : setState(Closed)
+Controller -> Audit : record(adminId,"CLOSE_ELECTION")
+Controller --> Route : confirmClose()
+@enduml
