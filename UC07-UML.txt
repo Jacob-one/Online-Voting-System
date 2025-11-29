@@ -1,0 +1,37 @@
+@startuml
+title UC07 - View Results (Backend Implementation)
+
+actor Voter as V
+boundary ResultsView as RV
+control ResultsController as RC
+control ResultsService as RS
+entity Election as E
+entity Candidate as C
+entity Vote as VoteModel
+
+== Open Results Page ==
+V -> RV : openResultsPage()
+RV -> RC : viewResultsCurrent()
+
+== Backend Processing ==
+RC -> RS : getCurrentResults()
+
+RS -> E : findOne({ state: "Open" })
+E --> RS : election or null
+
+alt Election exists
+    RS -> VoteModel : aggregate votes\n(match electionId)\n$unwind candidateIds\n$group by candidate
+    VoteModel --> RS : aggregatedCounts
+
+    RS -> C : find(_id in aggregated candidateIds)
+    C --> RS : candidateList
+
+    RS --> RC : { election, results[] }
+
+    RC -> RV : renderResults(data)
+else No open election
+    RS --> RC : null
+    RC -> RV : showNotAvailable("No open election found")
+end
+
+@enduml
