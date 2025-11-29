@@ -1,0 +1,30 @@
+@startuml
+actor "Election Administrator" as Admin
+actor Voter
+participant "ResultsRoutes" as Route
+participant "AuthMiddleware" as MW
+participant "ResultsController" as Controller
+participant "ResultsService" as Service
+database "ResultSnapshot Model" as SnapshotDB
+
+== Admin Publishes Results ==
+Admin -> Route : POST /results/publish
+Route -> MW : verifyToken()
+MW --> Route : next()
+
+Route -> Controller : viewResults(req,res)
+Controller -> Service : getCurrentResults()
+Service -> SnapshotDB : findLatest(electionId)
+SnapshotDB --> Service : resultSnapshot
+Service --> Controller : snapshot
+Controller --> Route : publish(snapshot)
+Route --> Admin : publishConfirmation
+
+== Voter Views Results ==
+Voter -> Route : GET /results/current
+Route -> Controller : viewResults()
+Controller -> Service : getCurrentResults()
+Service --> Controller : snapshot
+Controller --> Route : displayResults()
+Route --> Voter : totalsJSON
+@enduml
