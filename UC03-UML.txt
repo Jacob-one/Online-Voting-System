@@ -1,0 +1,35 @@
+@startuml
+actor Voter
+participant "VoteRoutes" as Route
+participant "AuthMiddleware" as MW
+participant "VoteController" as Controller
+participant "VoteService" as Service
+database "Vote Model" as VoteDB
+database "Election Model" as ElectionDB
+database "Voter Model" as VoterDB
+
+Voter -> Route : POST /vote
+Route -> MW : use(req,res,next)
+MW -> VoterDB : verifyToken()
+VoterDB --> MW : voterVerified
+MW --> Route : next()
+
+Route -> Controller : submitVote(req,res)
+
+== Validation ==
+Controller -> Controller : validateVotePayload()
+Controller -> Controller : getSourceIp()
+
+== Record Vote ==
+Controller -> Service : recordVote(voterId, electionId, selections, sourceIp)
+Service -> ElectionDB : verifyElectionOpen()
+ElectionDB --> Service : electionOpen
+
+Service -> VoteDB : save(voteObject)
+VoteDB --> Service : voteSaved
+
+Service --> Controller : voteRecord
+
+Controller --> Route : buildSuccessResponse()
+Route --> Voter : voteConfirmation
+@enduml
