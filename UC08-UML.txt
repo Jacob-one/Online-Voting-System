@@ -1,0 +1,44 @@
+@startuml
+title UC08 - Review Audit Log (Backend Implementation)
+
+actor ElectionAdministrator as EA
+boundary AdminDashboardView as ADV
+control AdminController as AC
+control AuditService as AS
+entity AuditEntry as EntryModel
+
+== Open Audit Log ==
+EA -> ADV : openAuditLog()
+ADV -> AC : viewAuditLog(defaultFilter)
+
+AC -> AS : getEntries(defaultFilter)
+AS -> EntryModel : query(defaultFilter)
+EntryModel --> AS : entries
+AS --> AC : entries
+AC -> ADV : displayEntries(entries)
+
+== Filter / Search Logs ==
+loop while EA refines filters
+    EA -> ADV : applyFilter(dateRange, actor, type)
+    ADV -> AC : viewAuditLog(filter)
+
+    AC -> AS : getEntries(filter)
+    AS -> EntryModel : query(filter)
+    EntryModel --> AS : filteredEntries
+    AS --> AC : filteredEntries
+
+    AC -> ADV : updateFilteredTable(filteredEntries)
+end
+
+== Optional Export ==
+opt EA exports report
+    EA -> ADV : exportAuditReport(currentFilter)
+    ADV -> AC : exportAuditReport(currentFilter)
+
+    AC -> AS : generateReport(currentFilter)
+    AS --> AC : reportFile
+
+    AC -> ADV : downloadLink(reportFile)
+end
+
+@enduml
