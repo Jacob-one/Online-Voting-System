@@ -1,0 +1,31 @@
+@startuml
+actor "Election Administrator" as Admin
+participant "AdminRoutes" as Route
+participant "AuthMiddleware" as MW
+participant "TallyService" as Tally
+database "Vote Model" as VoteDB
+database "Election Model" as ElectionDB
+participant "ResultsService" as Results
+participant "AuditService" as Audit
+
+Admin -> Route : POST /admin/tally
+Route -> MW : verifyToken()
+MW --> Route : next()
+
+Route -> Tally : tally(electionId)
+
+Tally -> VoteDB : collectValidVotes(electionId)
+VoteDB --> Tally : validVotes
+
+Tally -> Tally : applyRule()
+Tally -> Tally : detectInvalidDuplicates()
+
+Tally -> Results : exportResults(electionId)
+Results --> Tally : resultSnapshot
+
+Tally -> Results : submitResults(resultSnapshot)
+
+Tally -> Audit : record("TALLY_RUN", adminId)
+
+Tally --> Admin : tallyComplete()
+@enduml
